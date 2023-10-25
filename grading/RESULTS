@@ -10,7 +10,6 @@
 	-1 (escapedeof)	 escaped eof in a string
 	-1 (escapedunprintables)	 escaped nonprinting chars
 	-1 (hairyscary)	 hairyscary example
-	-1 (integers2)	 less typical integers
 	-1 (invalidcharacters)	 characters not in the cool language
 	-1 (invalidinvisible)	 unprintable characters not allowed in cool
 	-1 (io)	 io example
@@ -41,7 +40,6 @@
 	-1 (stringcomment)	 strings and comments
 	-1 (stringwithescapes)	 a long string with escaped characters
 	-1 (twice_512_nested_comments)	 many nested comments
-	-1 (validcharacters)	 a bunch of characters in the cool language 
 	-1 (weirdcharcomment)	 various binary characters in a comment
 	-1 (wq0607-c1)	 sequences of one line comments and strings
 	-1 (wq0607-c2)	 sequences of block comments and strings

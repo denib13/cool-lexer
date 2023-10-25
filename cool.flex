@@ -60,8 +60,8 @@ extern YYSTYPE cool_yylval;
 
 WS              [ \t]+
 CLASS           [Cc][Ll][Aa][Ss][Ss]             
-FI              [Ff][Ii]
-IF              [Ii][Ff]
+FI              [Ff][Ii]$
+IF              [Ii][Ff]$
 IN              [Ii][Nn]
 INHERITS        [Ii][Nn][Hh][Ee][Rr][Ii][Tt][Ss]
 ISVOID          [Ii][Ss][Vv][Oo][Ii][Dd]
@@ -75,13 +75,24 @@ ESAC            [Ee][Ss][Aa][Cc]
 NEW             [Nn][Ee][Ww]         
 OF              [Oo][Ff]   
 NOT             [Nn][Oo][Tt]          
-ELSE            (E|e)(L|l)(S|s)(E|e)
-TRUE            t(R|r)(U|u)(E|e)
-FALSE           f(A|a)(L|l)(S|s)(E|e)
-TYPEID          [a-zA-Z]*
+ELSE            [Ee][Ll][Ss][Ee]
+TRUE            t[Rr][Uu][Ee]$
+FALSE           f[Aa][Ll][Ss][Ee]
+TYPEID          [A-Z][a-zA-Z0-9_]*
 DIGIT           [0-9]  
 INTEGER         {DIGIT}+
+OBJECTID        [a-z][a-zA-Z0-9_]*
+OPERATORS       [-+*/@,~:=<]
+DOT             \.
+SEMICOLON       \;
+LBRACKET        \(
+RBRACKET        \)
+LCBRACKET       \{
+RCBRACKET       \}
+LE              <=
 DARROW          =>
+ASSIGN          <-
+ERROR           _
 
 WS_STRING_SYMBOL \/[btnf]
 STRING_CHARS ([a-zA-Z0-9 :!@#$%^&*()_+-=\t]+|{WS_STRING_SYMBOL}+)
@@ -181,10 +192,27 @@ SLASH \\
 {TYPEID}     { cool_yylval.symbol = inttable.add_string(yytext);
                 return (TYPEID); 
 }
+{LE}        { return (LE);}
 {DARROW}		{ return (DARROW); }
 {INTEGER}   { 
               cool_yylval.symbol = inttable.add_string(yytext);
               return (INT_CONST); 
+}
+{OBJECTID}  { 
+              cool_yylval.symbol = inttable.add_string(yytext);
+              return (OBJECTID); 
+}
+{OPERATORS} { return yytext[0]; }
+{DOT}       { return yytext[0]; }
+{SEMICOLON} { return yytext[0]; }
+{LBRACKET}  { return yytext[0]; }
+{RBRACKET}  { return yytext[0]; }
+{LCBRACKET} { return yytext[0]; }
+{RCBRACKET} { return yytext[0]; }
+{ASSIGN}    { return (ASSIGN);}
+{ERROR}     {
+              cool_yylval.symbol = inttable.add_string(yytext);
+              return (ERROR);
 }
 <<EOF>> {yyterminate();}
 
