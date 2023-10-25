@@ -1,4 +1,4 @@
-/*
+/* 
  *  The scanner definition for COOL.
  */
 
@@ -39,11 +39,16 @@ extern int verbose_flag;
 
 extern YYSTYPE cool_yylval;
 
+ 
 /*
  *  Add Your own definitions here
  */
 
 %}
+
+%x STRING
+%x ERROR_STRING
+%x EOF_STRING
 
 /*
  * Define names for regular expressions here.
@@ -53,7 +58,7 @@ extern YYSTYPE cool_yylval;
 
 
 
-
+WS              [ \t]+
 CLASS           [Cc][Ll][Aa][Ss][Ss]             
 FI              [Ff][Ii]
 IF              [Ii][Ff]
@@ -75,10 +80,81 @@ TRUE            t(R|r)(U|u)(E|e)
 FALSE           f(A|a)(L|l)(S|s)(E|e)
 TYPEID          [a-zA-Z]*
 DIGIT           [0-9]  
-INTEGER         DIGIT+
+INTEGER         {DIGIT}+
 DARROW          =>
 
+WS_STRING_SYMBOL \/[btnf]
+STRING_CHARS ([a-zA-Z0-9 :!@#$%^&*()_+-=\t]+|{WS_STRING_SYMBOL}+)
+STRING_ESCAPED_CHAR {SLASH}[^btnf]
+NULL         \0
+QUOTE \"
+
+NEW_LINE \n
+SLASH \\
+
 %%
+
+{QUOTE} {
+      
+          BEGIN(STRING);
+        }
+<STRING>{QUOTE} { 
+        {
+          yytext[yyleng-1] = '\0';
+          --yyleng;
+          cool_yylval.symbol = inttable.add_string(yytext);
+          BEGIN(INITIAL);
+          return (STR_CONST);
+        }}
+<STRING>{STRING_CHARS} { 
+        {
+          yymore();
+        }}
+<STRING>{STRING_ESCAPED_CHAR} { 
+        {
+          if (yyleng < 2)
+          {
+            return 'E';
+          }
+
+          if(yytext[yyleng-1] == '\0')
+          {
+            cool_yylval.error_msg = "String contains escaped null character.";
+            BEGIN(ERROR_STRING);
+            return (ERROR);
+          }
+
+          yytext[yyleng-2] = yytext[yyleng-1];
+          yytext[yyleng-1] = '\0';
+          --yyleng;
+          yymore();
+        }}
+<STRING><<EOF>> { 
+        {
+          yyrestart(yyin);
+          cool_yylval.error_msg = "EOF in string constant";
+          BEGIN(EOF_STRING);
+          return (ERROR);
+        }}
+<ERROR_STRING>{QUOTE} { 
+        { 
+          BEGIN(INITIAL);
+        }}
+<ERROR_STRING>\n { 
+        { 
+          BEGIN(INITIAL);
+        }}
+<ERROR_STRING><<EOF>> { 
+        {
+          yyterminate();
+        }}
+<EOF_STRING>\n|. { 
+        {
+          yyterminate();
+        }}
+
+{WS}
+{NEW_LINE}         
 {CLASS}      { return (CLASS); }
 {FI}      { return (FI); }
 {IF}      { return (IF); }
@@ -110,6 +186,7 @@ DARROW          =>
               cool_yylval.symbol = inttable.add_string(yytext);
               return (INT_CONST); 
 }
+<<EOF>> {yyterminate();}
 
  /*
   * Keywords are case-insensitive except for the values true and false,
