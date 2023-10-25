@@ -1,7 +1,6 @@
 	-1 (arith)	  arith example
 	-1 (atoi)	 atoi example
 	-1 (badidentifiers)	 bad identifiers
-	-1 (badkeywords)	 bad keywords
 	-1 (book_list)	 sample program
 	-1 (bothcomments)	 mixing the two types of comments
 	-1 (comment_in_string)	 comment in string
