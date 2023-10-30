@@ -47,6 +47,8 @@ extern YYSTYPE cool_yylval;
 %}
 
 %x STRING
+%x COMMENT
+%x ONELINECOMMENT
 %x ERROR_STRING
 %x EOF_STRING
 
@@ -61,7 +63,7 @@ extern YYSTYPE cool_yylval;
 WS              [ \t]+
 CLASS           [Cc][Ll][Aa][Ss][Ss]             
 FI              [Ff][Ii]$
-IF              [Ii][Ff]$
+IF              [Ii][Ff]
 IN              [Ii][Nn]
 INHERITS        [Ii][Nn][Hh][Ee][Rr][Ii][Tt][Ss]
 ISVOID          [Ii][Ss][Vv][Oo][Ii][Dd]
@@ -89,10 +91,15 @@ LBRACKET        \(
 RBRACKET        \)
 LCBRACKET       \{
 RCBRACKET       \}
+LSBRACKET       \[
+RSBRACKET       \]
 LE              <=
 DARROW          =>
 ASSIGN          <-
-ERROR           _
+UNDERSCORE      _
+SYMBOLS         [!#%$\^&>?`\\]
+VERTICALBAR     \|
+
 
 WS_STRING_SYMBOL \/[btnf]
 STRING_CHARS ([a-zA-Z0-9 :!@#$%^&*()_+-=\t]+|{WS_STRING_SYMBOL}+)
@@ -104,6 +111,19 @@ NEW_LINE \n
 SLASH \\
 
 %%
+
+"(*"   {
+          BEGIN(COMMENT);
+}
+<COMMENT>[^*\n]*
+<COMMENT>"*"+[^*\)\n]*
+<COMMENT>"*"+")"      BEGIN(INITIAL);
+
+"--"   {
+          BEGIN(ONELINECOMMENT);
+}
+<ONELINECOMMENT>[^\n]*
+<ONELINECOMMENT>"\n"  BEGIN(INITIAL);
 
 {QUOTE} {
       
@@ -192,8 +212,6 @@ SLASH \\
 {TYPEID}     { cool_yylval.symbol = inttable.add_string(yytext);
                 return (TYPEID); 
 }
-{LE}        { return (LE);}
-{DARROW}		{ return (DARROW); }
 {INTEGER}   { 
               cool_yylval.symbol = inttable.add_string(yytext);
               return (INT_CONST); 
@@ -209,12 +227,31 @@ SLASH \\
 {RBRACKET}  { return yytext[0]; }
 {LCBRACKET} { return yytext[0]; }
 {RCBRACKET} { return yytext[0]; }
-{ASSIGN}    { return (ASSIGN);}
-{ERROR}     {
-              cool_yylval.symbol = inttable.add_string(yytext);
+{LSBRACKET} {
+              cool_yylval.error_msg = yytext;
               return (ERROR);
 }
-<<EOF>> {yyterminate();}
+
+{RSBRACKET} {
+              cool_yylval.error_msg = yytext;
+              return (ERROR);
+}
+{LE}        { return (LE);}
+{DARROW}		{ return (DARROW); }
+{ASSIGN}    { return (ASSIGN);}
+{UNDERSCORE} {
+              cool_yylval.error_msg = yytext;
+              return (ERROR);
+}
+
+{SYMBOLS}   {
+              cool_yylval.error_msg = yytext;
+              return (ERROR);
+}
+{VERTICALBAR} {
+              cool_yylval.error_msg = yytext;
+              return (ERROR);
+}
 
  /*
   * Keywords are case-insensitive except for the values true and false,
