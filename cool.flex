@@ -65,7 +65,7 @@ int comment_nesting;
 
 
 
-WS              [ \t]+
+WS              [ \t\f\v]+
 CLASS           [Cc][Ll][Aa][Ss][Ss]             
 FI              [Ff][Ii]
 IF              [Ii][Ff]
@@ -108,7 +108,7 @@ VERTICALTAB     \v
 TAB             \t
 CARRIAGERETURN  \r
 FORMFEED        \f
-STRING          [^\"\0\n\\])+
+STRING          [^\"\0\n\\]+
 NULL            \0
 QUOTE           \"
 NEW_LINE        \n
@@ -261,8 +261,8 @@ OTHER           .
           yyterminate();
         }}
 
-{WS}
-{NEW_LINE}   { curr_lineno++;  }     
+{WS}                        ;
+{NEW_LINE}|{CARRIAGERETURN}   { curr_lineno++;  }     
 {CLASS}      { return (CLASS); }
 {FI}      { return (FI); }
 {IF}      { return (IF); }
@@ -325,18 +325,10 @@ OTHER           .
               cool_yylval.error_msg = yytext;
               return (ERROR);
 }
-{VERTICALBAR} {
-              cool_yylval.error_msg = yytext;
-              return (ERROR);
-}
 {UNMATCHED}  {
               cool_yylval.error_msg = "Unmatched *)";
               return (ERROR);
 }
-{VERTICALTAB} {}
-{TAB}         {}
-{CARRIAGERETURN} {}
-{FORMFEED}    {}
 {OTHER}      {
               cool_yylval.error_msg = yytext;
               return (ERROR);
