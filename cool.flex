@@ -102,6 +102,10 @@ UNDERSCORE      _
 SYMBOLS         [!#%$\^&>?`\\]
 VERTICALBAR     \|
 UNMATCHED       "*)"
+VERTICALTAB     \v
+TAB             \t
+CARRIAGERETURN  \r
+FORMFEED        \f
 
 
 WS_STRING_SYMBOL \/[btnf]
@@ -112,6 +116,8 @@ QUOTE \"
 
 NEW_LINE \n
 SLASH \\
+
+OTHER           .
 
 %%
         comment_nesting = 0;
@@ -125,6 +131,7 @@ SLASH \\
 <COMMENT>"*"+           ;
 <COMMENT>[^\(*\n]+      ;
 <COMMENT>[\(]           ;
+<COMMENT>\n             { curr_lineno++;  }
 <COMMENT><<EOF>>        {
                             cool_yylval.error_msg  = "EOF in comment";
                             BEGIN(EOF_COMMENT);
@@ -137,7 +144,7 @@ SLASH \\
           BEGIN(ONELINECOMMENT);
 }
 <ONELINECOMMENT>[^\n]*
-<ONELINECOMMENT>"\n"  BEGIN(INITIAL);
+<ONELINECOMMENT>"\n"    { curr_lineno++; BEGIN(INITIAL);  }
 
 
 {QUOTE} {
@@ -200,7 +207,7 @@ SLASH \\
         }}
 
 {WS}
-{NEW_LINE}         
+{NEW_LINE}   { curr_lineno++;  }     
 {CLASS}      { return (CLASS); }
 {FI}      { return (FI); }
 {IF}      { return (IF); }
@@ -269,6 +276,14 @@ SLASH \\
 }
 {UNMATCHED}  {
               cool_yylval.error_msg = "Unmatched *)";
+              return (ERROR);
+}
+{VERTICALTAB} {}
+{TAB}         {}
+{CARRIAGERETURN} {}
+{FORMFEED}    {}
+{OTHER}      {
+              cool_yylval.error_msg = yytext;
               return (ERROR);
 }
 
