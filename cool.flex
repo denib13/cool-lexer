@@ -40,6 +40,7 @@ extern int curr_lineno;
 extern int verbose_flag;
 
 extern YYSTYPE cool_yylval;
+int comment_nesting;
 
  
 /*
@@ -54,6 +55,7 @@ extern YYSTYPE cool_yylval;
 %x ONELINECOMMENT
 %x ERROR_STRING
 %x EOF_STRING
+%x EOF_COMMENT
 
 /*
  * Define names for regular expressions here.
@@ -65,7 +67,7 @@ extern YYSTYPE cool_yylval;
 
 WS              [ \t]+
 CLASS           [Cc][Ll][Aa][Ss][Ss]             
-FI              [Ff][Ii]$
+FI              [Ff][Ii]
 IF              [Ii][Ff]
 IN              [Ii][Nn]
 INHERITS        [Ii][Nn][Hh][Ee][Rr][Ii][Tt][Ss]
@@ -81,7 +83,7 @@ NEW             [Nn][Ee][Ww]
 OF              [Oo][Ff]   
 NOT             [Nn][Oo][Tt]          
 ELSE            [Ee][Ll][Ss][Ee]
-TRUE            t[Rr][Uu][Ee]$
+TRUE            t[Rr][Uu][Ee]
 FALSE           f[Aa][Ll][Ss][Ee]
 TYPEID          [A-Z][a-zA-Z0-9_]*
 DIGIT           [0-9]  
@@ -101,27 +103,45 @@ DARROW          =>
 ASSIGN          <-
 UNDERSCORE      _
 SYMBOLS         [!#%$\^&>?`\\]
-VERTICALBAR     \|
+UNMATCHED       "*)"
+VERTICALTAB     \v
+TAB             \t
+CARRIAGERETURN  \r
+FORMFEED        \f
 STRING          [^\"\0\n\\])+
 NULL            \0
 QUOTE           \"
 NEW_LINE        \n
 SLASH           \\
+OTHER           .
 
 %%
+        comment_nesting = 0;
 
 "(*"   {
           BEGIN(COMMENT);
+          comment_nesting++;
 }
-<COMMENT>[^*\n]*
-<COMMENT>"*"+[^*\)\n]*
-<COMMENT>"*"+")"      BEGIN(INITIAL);
+<COMMENT>"(*"           { comment_nesting++;  }
+<COMMENT>"*"+")"        { comment_nesting--; if(comment_nesting == 0) { BEGIN(INITIAL); } }
+<COMMENT>"*"+           ;
+<COMMENT>[^\(*\n]+      ;
+<COMMENT>[\(]           ;
+<COMMENT>\n             { curr_lineno++;  }
+<COMMENT><<EOF>>        {
+                            cool_yylval.error_msg  = "EOF in comment";
+                            BEGIN(EOF_COMMENT);
+                            return (ERROR);
+}
+<EOF_COMMENT>\n|.       {   yyterminate();  }
+
 
 "--"   {
           BEGIN(ONELINECOMMENT);
 }
 <ONELINECOMMENT>[^\n]*
-<ONELINECOMMENT>"\n"  BEGIN(INITIAL);
+<ONELINECOMMENT>"\n"    { curr_lineno++; BEGIN(INITIAL);  }
+
 
 
 
@@ -242,7 +262,7 @@ SLASH           \\
         }}
 
 {WS}
-{NEW_LINE}         
+{NEW_LINE}   { curr_lineno++;  }     
 {CLASS}      { return (CLASS); }
 {FI}      { return (FI); }
 {IF}      { return (IF); }
@@ -306,6 +326,18 @@ SLASH           \\
               return (ERROR);
 }
 {VERTICALBAR} {
+              cool_yylval.error_msg = yytext;
+              return (ERROR);
+}
+{UNMATCHED}  {
+              cool_yylval.error_msg = "Unmatched *)";
+              return (ERROR);
+}
+{VERTICALTAB} {}
+{TAB}         {}
+{CARRIAGERETURN} {}
+{FORMFEED}    {}
+{OTHER}      {
               cool_yylval.error_msg = yytext;
               return (ERROR);
 }
