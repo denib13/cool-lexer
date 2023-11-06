@@ -33,6 +33,8 @@ extern FILE *fin; /* we read from this file */
 
 char string_buf[MAX_STR_CONST]; /* to assemble string constants */
 char *string_buf_ptr;
+int string_buf_len;
+bool string_buf_overflow;
 
 extern int curr_lineno;
 extern int verbose_flag;
@@ -47,6 +49,7 @@ extern YYSTYPE cool_yylval;
 %}
 
 %x STRING
+%x STRING_SLASH
 %x COMMENT
 %x ONELINECOMMENT
 %x ERROR_STRING
@@ -99,16 +102,11 @@ ASSIGN          <-
 UNDERSCORE      _
 SYMBOLS         [!#%$\^&>?`\\]
 VERTICALBAR     \|
-
-
-WS_STRING_SYMBOL \/[btnf]
-STRING_CHARS ([a-zA-Z0-9 :!@#$%^&*()_+-=\t]+|{WS_STRING_SYMBOL}+)
-STRING_ESCAPED_CHAR {SLASH}[^btnf]
-NULL         \0
-QUOTE \"
-
-NEW_LINE \n
-SLASH \\
+STRING          [^\"\0\n\\])+
+NULL            \0
+QUOTE           \"
+NEW_LINE        \n
+SLASH           \\
 
 %%
 
@@ -125,40 +123,28 @@ SLASH \\
 <ONELINECOMMENT>[^\n]*
 <ONELINECOMMENT>"\n"  BEGIN(INITIAL);
 
+
+
 {QUOTE} {
-      
+          string_buf_ptr = string_buf;
+          string_buf_ptr[0] = '\0';
+          string_buf_len = 0;
+          string_buf_overflow = false;
           BEGIN(STRING);
         }
 <STRING>{QUOTE} { 
         {
-          yytext[yyleng-1] = '\0';
-          --yyleng;
-          cool_yylval.symbol = inttable.add_string(yytext);
           BEGIN(INITIAL);
-          return (STR_CONST);
-        }}
-<STRING>{STRING_CHARS} { 
-        {
-          yymore();
-        }}
-<STRING>{STRING_ESCAPED_CHAR} { 
-        {
-          if (yyleng < 2)
+          if(string_buf_overflow || string_buf_len > MAX_STR_CONST - 1)
           {
-            return 'E';
+             cool_yylval.error_msg = "String constant too long";
+             return (ERROR);
           }
-
-          if(yytext[yyleng-1] == '\0')
+          else 
           {
-            cool_yylval.error_msg = "String contains escaped null character.";
-            BEGIN(ERROR_STRING);
-            return (ERROR);
+            cool_yylval.symbol = inttable.add_string(string_buf_ptr);
+            return (STR_CONST);
           }
-
-          yytext[yyleng-2] = yytext[yyleng-1];
-          yytext[yyleng-1] = '\0';
-          --yyleng;
-          yymore();
         }}
 <STRING><<EOF>> { 
         {
@@ -167,6 +153,77 @@ SLASH \\
           BEGIN(EOF_STRING);
           return (ERROR);
         }}
+<STRING>\n { 
+        {
+          cool_yylval.error_msg = "Unterminated string constant";
+          BEGIN(INITIAL);
+          return (ERROR);
+        }}        
+<STRING>{SLASH} { 
+        {
+          BEGIN(STRING_SLASH);
+        }}  
+<STRING>{STRING} { 
+        {
+          if(string_buf_overflow || string_buf_len + yyleng > MAX_STR_CONST - 1)
+          {
+            string_buf_overflow = true;
+          }
+          else 
+          {
+            for(int i = 0; i < yyleng; i++) 
+            {
+              string_buf_ptr[string_buf_len++] = yytext[i];
+            }
+            string_buf_ptr[string_buf_len] = '\0';
+          }
+        }}
+<STRING_SLASH>\0 {{
+        cool_yylval.error_msg = "String contains escaped null character.";
+        BEGIN(ERROR_STRING);
+        return (ERROR);
+}}
+<STRING_SLASH>\n {{
+        curr_lineno++;
+        if(string_buf_overflow || string_buf_len + 1 > MAX_STR_CONST - 1)    
+        {
+          string_buf_overflow = true;
+        }      
+        else 
+        {
+          string_buf_ptr[string_buf_len++] = '\n';
+          string_buf_ptr[string_buf_len] = '\0';
+        }
+        BEGIN(STRING);
+}}
+<STRING_SLASH><<EOF>> {{
+          yyrestart(yyin);
+          cool_yylval.error_msg = "EOF in string constant";
+          BEGIN(EOF_STRING);
+          return (ERROR);
+}}        
+<STRING_SLASH>. {{
+        if(string_buf_overflow || string_buf_len + 1 > MAX_STR_CONST - 1)    
+        {
+          string_buf_overflow = true;
+        }      
+        else 
+        {
+          char c = yytext[0];
+          if (c == 't') {
+              c = '\t';
+          } else if (c == 'b') {
+              c = '\b';
+          } else if (c == 'n') {
+              c = '\n';
+          } else if (c == 'f') {
+              c = '\f';
+          }
+          string_buf_ptr[string_buf_len++] = c;
+          string_buf_ptr[string_buf_len] = '\0';
+        }
+        BEGIN(STRING);
+}}
 <ERROR_STRING>{QUOTE} { 
         { 
           BEGIN(INITIAL);
